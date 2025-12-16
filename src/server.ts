@@ -1,20 +1,20 @@
-import express, { Request, Response } from "express"
-import {Pool} from "pg"
-import path from "path"
-import dotenv from "dotenv"
-dotenv.config({path:path.join(process.cwd(),".env")})
+import express, { Request, Response } from "express";
+import { Pool } from "pg";
+import path from "path";
+import dotenv from "dotenv";
+dotenv.config({ path: path.join(process.cwd(), ".env") });
 
-const app = express()
-const port = 3000
+const app = express();
+const port = 3000;
 //parser
-app.use(express.json())
+app.use(express.json());
 
-const pool = new Pool ({
-    connectionString:`${process.env.CONNECTION_STR}`
-})
+const pool = new Pool({
+  connectionString: `${process.env.CONNECTION_STR}`,
+});
 
-const initDB= async()=>{
-    await pool.query(`
+const initDB = async () => {
+  await pool.query(`
         CREATE TABLE IF NOT EXISTS users(
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -24,9 +24,9 @@ const initDB= async()=>{
         address TEXT,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
-        )`)
+        )`);
 
-    await pool.query(`
+  await pool.query(`
         CREATE TABLE IF NOT EXISTS todos(
         id SERIAL PRIMARY KEY,
         user_id INT REFERENCES users(id) ON DELETE CASCADE,
@@ -36,27 +36,62 @@ const initDB= async()=>{
         due_date DATE,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
-        )`)
-}
+        )`);
+};
 
-initDB() // calling the function
+initDB(); // calling the function
 
-
-
-app.get('/', (req:Request, res:Response) => {
-  res.send('Hello World!')
-})
+app.get("/", (req: Request, res: Response) => {
+  res.send("Hello World!");
+});
 
 
-app.post("/",(req:Request,res:Response)=>{
-    console.log(req.body)
+
+// post the users to the backend
+app.post("/users", async (req: Request, res: Response) => {
+  const { name, email } = req.body;
+  try {
+    const result = await pool.query(
+      `INSERT INTO users(name,email) VALUES($1,$2) RETURNING *`,
+      [name, email]
+    );
+    console.log(result);
     res.status(201).json({
-        success:"True",
-        message:"Api is working successfully"
-    })
+      success: true,
+      message: "Data inserted successfully",
+      data: result.rows[0],
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: "False",
+      message: err.message,
+    });
+  }
+});
 
-})
+
+
+// get all the users from the backend
+app.get("/users", async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`SELECT * FROM users`);
+    res.status(200).json({
+      success: true,
+      message: "Users get the data successfully",
+      data: result.rows,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+//get individual users by there id
+
+
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+  console.log(`Example app listening on port ${port}`);
+});
